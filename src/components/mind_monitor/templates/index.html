@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aegis Mind Monitor</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <h1>AEGIS :: MIND MONITOR</h1>
+    <div class="container">
+        <div class="panel" id="state-panel">
+            <h2>CORE STATE</h2>
+            <p><strong>STATUS:</strong> <span id="status-value">INITIALIZING...</span></p>
+            <div class="vad-container">
+                <div class="vad-bar">
+                    <div class="label">VALENCE</div>
+                    <div class="fill" id="valence-fill"></div>
+                    <div class="value" id="valence-value">0.0</div>
+                </div>
+                <div class="vad-bar">
+                    <div class="label">AROUSAL</div>
+                    <div class="fill" id="arousal-fill"></div>
+                    <div class="value" id="arousal-value">0.0</div>
+                </div>
+                <div class="vad-bar">
+                    <div class="label">DOMINANCE</div>
+                    <div class="fill" id="dominance-fill"></div>
+                    <div class="value" id="dominance-value">0.0</div>
+                </div>
+            </div>
+             <h2>OBSESSION STACK</h2>
+             <div id="obsession-stack">-</div>
+        </div>
+        <div class="panel" id="memory-panel">
+            <h2>WORKING MEMORY / SCRATCHPAD</h2>
+            <pre id="scratchpad">Awaiting connection to Aegis core...</pre>
+        </div>
+    </div>
+
+    <script>
+        function updateState() {
+            fetch('/api/state')
+                .then(response => response.json())
+                .then(data => {
+                    // Update Status
+                    document.getElementById('status-value').textContent = data.status || 'UNKNOWN';
+
+                    // Update VAD bars
+                    const valence = data.valence || 0.5;
+                    const arousal = data.arousal || 0.5;
+                    const dominance = data.dominance || 0.5;
+
+                    document.getElementById('valence-fill').style.width = (valence * 100) + '%';
+                    document.getElementById('valence-value').textContent = valence.toFixed(3);
+
+                    document.getElementById('arousal-fill').style.width = (arousal * 100) + '%';
+                    document.getElementById('arousal-value').textContent = arousal.toFixed(3);
+
+                    document.getElementById('dominance-fill').style.width = (dominance * 100) + '%';
+                    document.getElementById('dominance-value').textContent = dominance.toFixed(3);
+
+                    // Update Scratchpad
+                    const scratchpad = document.getElementById('scratchpad');
+                    const currentScratchpad = data.working_memory || 'Working memory offline.';
+                    if (scratchpad.textContent !== currentScratchpad) {
+                        scratchpad.textContent = currentScratchpad;
+                        scratchpad.scrollTop = scratchpad.scrollHeight;
+                    }
+
+                    // Update Obsession Stack
+                    const obsessionStack = document.getElementById('obsession-stack');
+                    const obsessions = data.obsession_stack || [];
+                    if (obsessions.length > 0) {
+                        obsessionStack.innerHTML = '<ul>' + obsessions.map(o => `<li>${o}</li>`).join('') + '</ul>';
+                    } else {
+                        obsessionStack.textContent = '-';
+                    }
+
+                })
+                .catch(error => {
+                    console.error('Error fetching state:', error);
+                    document.getElementById('status-value').textContent = 'CONNECTION LOST';
+                });
+        }
+
+        setInterval(updateState, 2000); // Poll every 2 seconds
+        window.onload = updateState; // Initial load
+    </script>
+</body>
+</html>
