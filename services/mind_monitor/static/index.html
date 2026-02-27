@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en" class="bg-black">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aegis :: Mind Monitor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto+Mono:wght@300;400&display=swap');
+        body {
+            font-family: 'Roboto Mono', monospace;
+            background-color: #0a0a0a;
+            color: #00ffcc;
+            text-shadow: 0 0 5px #00ffcc, 0 0 10px #00ffcc;
+        }
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+        .data-box {
+            background-color: rgba(0, 255, 204, 0.05);
+            border: 1px solid rgba(0, 255, 204, 0.2);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+        .progress-bar-container {
+            background-color: rgba(0, 255, 204, 0.1);
+            border: 1px solid rgba(0, 255, 204, 0.2);
+        }
+        .progress-bar {
+            background-color: #00ffcc;
+            box-shadow: 0 0 8px #00ffcc, 0 0 12px #00ffcc;
+            transition: width 0.5s ease-in-out;
+        }
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            box-shadow: 0 0 8px, 0 0 12px;
+        }
+        .status-idle {
+            background-color: #00ffcc;
+            box-shadow-color: #00ffcc;
+        }
+        .status-researching {
+            background-color: #ff4d4d;
+            box-shadow-color: #ff4d4d;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
+
+        <!-- HEADER -->
+        <header class="md:col-span-3 flex justify-between items-center pb-4 border-b border-cyan-500/20">
+            <div>
+                <h1 class="font-orbitron text-3xl tracking-widest">AEGIS MIND MONITOR</h1>
+                <p class="text-sm text-cyan-400/70">Real-Time Cognitive State Analysis</p>
+            </div>
+            <div class="flex items-center space-x-3">
+                <div id="status-indicator" class="status-indicator status-idle"></div>
+                <span id="system-status" class="font-orbitron">IDLE</span>
+            </div>
+        </header>
+
+        <!-- VAD STATE -->
+        <div class="md:col-span-1 data-box p-4 rounded-lg">
+            <h2 class="font-orbitron text-xl mb-4 border-b border-cyan-500/20 pb-2">V.A.D. EMOTIONAL STATE</h2>
+            <div class="space-y-4">
+                <!-- VALENCE -->
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span>Valence</span>
+                        <span id="valence-value">0.50</span>
+                    </div>
+                    <div class="progress-bar-container w-full h-4 rounded-full overflow-hidden">
+                        <div id="valence-bar" class="progress-bar h-full rounded-full" style="width: 50%;"></div>
+                    </div>
+                </div>
+                <!-- AROUSAL -->
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span>Arousal</span>
+                        <span id="arousal-value">0.50</span>
+                    </div>
+                    <div class="progress-bar-container w-full h-4 rounded-full overflow-hidden">
+                        <div id="arousal-bar" class="progress-bar h-full rounded-full" style="width: 50%;"></div>
+                    </div>
+                </div>
+                <!-- DOMINANCE -->
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span>Dominance</span>
+                        <span id="dominance-value">0.50</span>
+                    </div>
+                    <div class="progress-bar-container w-full h-4 rounded-full overflow-hidden">
+                        <div id="dominance-bar" class="progress-bar h-full rounded-full" style="width: 50%;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- COGNITIVE PROCESS -->
+        <div class="md:col-span-2 data-box p-4 rounded-lg">
+            <h2 class="font-orbitron text-xl mb-4 border-b border-cyan-500/20 pb-2">ACTIVE COGNITIVE PROCESS</h2>
+            <div class="h-full flex flex-col justify-center">
+                <p class="text-sm text-cyan-400/70">Current Investigation:</p>
+                <p id="current-investigation" class="text-2xl font-bold truncate">[ No active investigation ]</p>
+                <p class="text-sm text-cyan-400/70 mt-4">Obsession Stack Depth:</p>
+                <p id="obsession-depth" class="text-2xl font-bold">0</p>
+            </div>
+        </div>
+
+        <!-- MEMORY SNIPPETS -->
+        <div class="md:col-span-3 data-box p-4 rounded-lg">
+            <h2 class="font-orbitron text-xl mb-4 border-b border-cyan-500/20 pb-2">RECENT MEMORY EVENTS</h2>
+            <ul id="memory-log" class="space-y-2 text-sm h-48 overflow-y-auto pr-2">
+                <li class="text-gray-500 italic">Awaiting memory bus activity...</li>
+            </ul>
+        </div>
+
+    </div>
+
+    <script src="/static/main.js"></script>
+</body>
+</html>
