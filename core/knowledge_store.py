@@ -1,5 +1,4 @@
-import json
-import os
+import uuid
 import chromadb
 import networkx as nx
 from graspologic.partition import hierarchical_leiden
@@ -152,7 +151,16 @@ def retrieve(query_text, n_results = 5):
             
     return retrieved_info
 
-
+def store_engineering_lesson(topic: str, lesson: str):
+    doc_id = f"lesson_{uuid.uuid4().hex[:8]}"
+    doc_text = f"Engineering Lesson for '{topic}':\n{lesson}"
+    
+    collection.upsert(
+        ids=[doc_id],
+        documents=[doc_text],
+        metadatas=[{"type": "engineering_lesson", "cluster": -1, "weight": 5}]
+    )
+    print(" [KnowledgeStore] Engineering trauma permanently encoded into vector space.")
 
 def _register_daemon_callback():
     daemon = get_daemon()

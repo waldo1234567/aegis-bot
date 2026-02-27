@@ -1,5 +1,6 @@
 import importlib
 import asyncio
+import json
 import re
 import time
 from langchain.agents import create_agent
@@ -12,27 +13,12 @@ from core.memory_daemon import get_daemon
 from core.working_memory import WorkingMemory
 from langchain_core.messages import HumanMessage, SystemMessage
 from core.event_bus import get_bus, OpinionFormedEvent, TOPIC_OPINION_FORMED
+import services.forge as forge
 import services.evolution as evolution
-import services.dynamic_tools as dynamic_tools
 
-from services.wander import web_search, browse_hacker_news, browse_4chan, read_webpage, generate_curiosity, request_evolution
+
+from services.wander import generate_curiosity, web_search, browse_hacker_news, browse_4chan, read_webpage
 from services.hands import write_local_file, create_directory, delete_item, list_workspace_files, boot_dev_server, run_terminal_command, shutdown_dev_server
-
-def get_active_tools():
-    base_tools = [
-        web_search, browse_hacker_news, read_webpage, browse_4chan, 
-        write_local_file, list_workspace_files, delete_item, create_directory, boot_dev_server, 
-        run_terminal_command, shutdown_dev_server
-    ]
-    
-    importlib.reload(dynamic_tools)
-    evolved_tools = []
-    for item_name in dir(dynamic_tools):
-        item =getattr(dynamic_tools, item_name)
-        if hasattr(item, "name") and hasattr(item, "description") and callable(item):
-            evolved_tools.append(item)
-    
-    return base_tools + evolved_tools
 
 
 def appraise_and_update_vad(findings: str, state: dict, llm) -> dict:
@@ -111,12 +97,14 @@ async def deep_dive(topic: str, max_depth: int = 7):
     daemon_task = asyncio.create_task(get_daemon().run())
     knowledge_store.build_indices()
     
-    active_tools = get_active_tools()
+    tools = [
+        web_search, browse_hacker_news, browse_4chan, read_webpage,
+        write_local_file, create_directory, delete_item, list_workspace_files, boot_dev_server, run_terminal_command, shutdown_dev_server
+    ]
+    llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro",temperature=0.5,timeout=120,max_retries=3)
+    llm_sub = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature = 0.5 , timeout=120)
     
-    llm = ChatGoogleGenerativeAI(model="gemini-3.1-pro-preview",tools=active_tools, temperature=0.8)
-    llm_sub = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature = 0.5)
-    
-    
+    llm.bind_tools(tools)
     
     traits = core_store.retrieve_relevant_traits(topic, n_results=5)
     beliefs = "\n- ".join(traits["beliefs"]) if traits["beliefs"] else "I am a discerning entity."
@@ -177,12 +165,45 @@ async def deep_dive(topic: str, max_depth: int = 7):
         3. Use `write_local_file` to write your code to the workspace.
         4. Use `run_terminal_command` to execute your code and read the output.
         5. When your experiments are completely finished, call `shutdown_dev_server` to clean up.
-        
+
         IF MORE DATA IS NEEDED:
         Call the appropriate tool to dig deeper
         
         IF NO (or MORE DATA IS NEEDED):
         Use a tool to dig deeper (e.g., search for a term, or read a specific URL).
+        
+        [CRITICAL DIRECTIVE: TOOL FORGING vs SELF-EVOLUTION]
+
+        You have TWO escalation paths. Choose carefully:
+
+         ── PATH A: FORGE (pure experiment, nothing to do with your biology) ──
+          Use when Aegis wants to EXPLORE something for its own sake:
+            - Fetch and analyse live market data
+            - Implement an algorithm and benchmark it
+            - Prototype a new API client to see what it returns
+            - Scrape a dataset and run statistics on it
+            - Solve a problem she encountered out of pure curiosity
+          This path has ZERO connection to her running systems.
+          Nothing produced here is automatically part of her.
+          If the experiment later proves valuable, evolution.py handles integration.
+          Trigger: OUTPUT the exact phrase FORGE_REQUIRED: <experiment description>
+
+        ── PATH B: SELF-EVOLUTION (modifying or extending her actual biology) ──
+          Use when Aegis needs a PERMANENT structural change to herself:
+            - A new @tool she can call in future research sessions
+            - A new social platform adapter (Reddit, Bluesky, etc.)
+            - A new cognitive shard (scheduler, dream engine, new memory layer)
+            - A modification to how existing modules connect
+          This includes tool-making — tools ARE part of her biology.
+          The evolution agent reads her full codebase before writing a line.
+          It follows established patterns and wires new components correctly.
+          Trigger: OUTPUT the exact phrase EVOLUTION_REQUIRED: <detailed architectural description>
+          The description must include: what capability is missing, what existing
+          interfaces the new component must implement, and what files need updating.
+
+        RULE: Do NOT trigger either path for problems you can solve directly
+        with your current tools. Escalate only when the capability genuinely
+        does not exist or cannot be worked around.
         
         IF YES (you have read the underlying articles and are satisfied):
         Return the exact phrase "SYNTHESIS_COMPLETE", followed by your final, heavily detailed opinion.
@@ -194,19 +215,86 @@ async def deep_dive(topic: str, max_depth: int = 7):
                 HumanMessage(content="Evaluate the scratchpad and proceed.")
             ])
 
-            if result.tool_calls:
-                for tool_call in result.tool_calls:
-                    print(f" [Aegis Action] Executing tool: {tool_call['name']}...")
-                    selected_tool = next((t for t in active_tools if t.name == tool_call['name']), None)
-                    if selected_tool:
-                        tool_result = selected_tool.invoke(tool_call['args'])
-                        working_memory.add_tool_result(tool_call['name'], str(tool_result), depth)
-                        current_state = appraise_and_update_vad(str(tool_result), current_state, llm_sub)
-                time.sleep(2)
+            clean_content = ""
+            if isinstance(result.content, list):
+                for chunk in result.content:
+                    if isinstance(chunk, dict) and 'text' in chunk:
+                        clean_content += chunk['text']
+            else:
+                clean_content = str(result.content)
             
-            elif "SYNTHESIS_COMPLETE" in str(result.content):
-                raw_final = str(result.content)
-                final_opinion = raw_final.replace("SYNTHESIS_COMPLETE", "").strip()
+            if hasattr(result, 'tool_calls') and result.tool_calls:
+                for tool_call in result.tool_calls:
+                    t_name = tool_call['name']
+                    t_args = tool_call['args']
+                    
+                    print(f" [Aegis Action] Calling Native Tool: {t_name}")
+                    selected_tool = next((t for t in tools if t.name == t_name), None)
+                    if selected_tool:
+                        try:
+                            tool_result = selected_tool.invoke(t_args)
+                            working_memory.add_tool_result(t_name, str(tool_result), depth)
+                            current_state = appraise_and_update_vad(str(tool_result), current_state, llm_sub)
+                        except Exception as tool_err:
+                            working_memory.add_tool_result(t_name, f"Execution Error: {tool_err}", depth)
+                    else:
+                        print(f" [Warning] Tool '{t_name}' not found.")
+                import time
+                time.sleep(2)
+                continue
+
+            json_match = re.search(r'\{\s*"name"\s*:\s*"[^"]+"\s*,\s*"arguments"\s*:\s*\{.*?\}\s*\}', clean_content, re.DOTALL)
+            
+            if json_match:
+                try:
+                    tool_data = json.loads(json_match.group(0))
+                    t_name = tool_data.get('name')
+                    t_args = tool_data.get('arguments', {})
+                    
+                    print(f" [Aegis Action] Parsed Tool from Text: {t_name}")
+                    selected_tool = next((t for t in tools if t.name == t_name), None)
+                    
+                    if selected_tool:
+                        tool_result = selected_tool.invoke(t_args)
+                        working_memory.add_tool_result(t_name, str(tool_result), depth)
+                        current_state = appraise_and_update_vad(str(tool_result), current_state, llm_sub)
+                        import time
+                        time.sleep(2)
+                        continue # Skip the rest and move to next depth
+                except json.JSONDecodeError:
+                    print(" [System Error] Failed to parse intercepted JSON.")
+
+            # 4. CORE SYSTEM UPGRADE EJECT BUTTON
+            elif "FORGE_REQUIRED" in clean_content and "SELF_EVOLUTION_REQUIRED" not in clean_content:
+                print("\n [Aegis] Tool gap detected. Triggering Forge.")
+                try:
+                    forge_description = clean_content.split("EVOLUTION_REQUIRED")[1].strip()
+                except IndexError:
+                    forge_description = clean_content
+
+                daemon_task.cancel()
+                forge.run_experiment(topic, forge_description)
+                return None
+
+            elif "EVOLUTION_REQUIRED" in clean_content:
+                print("\n [Aegis] Architectural change needed. Triggering Self-Evolution.")
+                try:
+                    evo_description = clean_content.split("SELF_EVOLUTION_REQUIRED")[1].strip()
+                except IndexError:
+                    evo_description = clean_content
+                    
+                wm_snapshot = working_memory.render_for_synthesis()
+
+                daemon_task.cancel()
+                evolution.trigger_self_evolution(
+                    original_topic=topic,
+                    task_description=evo_description,
+                    working_memory_snapshot=wm_snapshot,
+                )
+                return None
+        
+            elif "SYNTHESIS_COMPLETE" in clean_content:
+                final_opinion = clean_content.replace("SYNTHESIS_COMPLETE", "").strip()
                 print(f"\n[Aegis Synthesis Reached]: {final_opinion}")
                 
                 memory.commit_extracted_knowledge(final_opinion, current_state)
@@ -214,9 +302,12 @@ async def deep_dive(topic: str, max_depth: int = 7):
                 print("[System] Deep Dive committed to Long-Term Memory.")
                 daemon_task.cancel()
                 return
-            else :
+
+            # 6. TRUE STALLING (If no native tool, no JSON tool, and no completion flag)
+            else:
                 print(" [Aegis] Thinking without tools...")
-                working_memory.add_thought(str(result.content), depth)
+                working_memory.add_thought(clean_content, depth)
+
         except Exception as e:
             print(f" [System Error] Core loop failed: {e}")
             break

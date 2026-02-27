@@ -19,12 +19,13 @@ from services.deep_dive import deep_dive
 from services.wander import generate_curiosity
 from services.sleep import enter_rem_sleep
 
-APP_STATE = {
-    "is_researching": False,
-    "current_vad": {"valence": 0.5, "arousal": 0.5, "dominance" : 0.5},
-    "last_interaction": None,
-    "obsession_stack": []
-}
+APP_STATE = {                                                                                                                                                                                        
+    "is_researching": False,                                                                                                                                                                         
+    "current_vad": {"valence": 0.5, "arousal": 0.5, "dominance" : 0.5},                                                                                                                              
+    "last_interaction": None,                                                                                                                                                                        
+    "obsession_stack": []                                                                                                                                                                            
+}      
+
 
 
 _active_daemons = set()

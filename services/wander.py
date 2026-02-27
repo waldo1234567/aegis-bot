@@ -9,7 +9,7 @@ from langchain.agents import create_agent
 from langchain_core.messages import HumanMessage, SystemMessage
 from ddgs import DDGS
 
-from services import evolution
+from services import forge
 import services.brain as brain
 import core.memory as memory
 import core.knowledge_store as knowledge_store
@@ -124,7 +124,7 @@ def request_evolution(task_description: str, failure_reason: str) -> str:
     If your current tools consistently fail to scrape a site, parse a specific format, 
     or bypass a block (e.g., 403 Forbidden), use this tool to request the creation of a brand new Python tool.
     """
-    return evolution.forge_new_tool(task_description, failure_reason)
+    return forge.forge_new_tool(task_description, failure_reason)
         
 
 tools =[ browse_hacker_news, browse_4chan, read_webpage]
