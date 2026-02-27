@@ -1,0 +1,29 @@
+cat << 'EOF' > requirements.txt
+# Core Framework
+fastapi
+uvicorn
+pydantic
+pydantic-settings
+python-dotenv
+httpx
+asyncio
+
+# AI & Orchestration
+langchain
+langchain-google-genai
+langchain-chroma
+langgraph
+chromadb
+ddgs
+google
+networkx
+bs4
+sqlite3
+tweepy
+twscrape
+graspologic
+
+# System & Tools
+docker
+requests
+EOF
